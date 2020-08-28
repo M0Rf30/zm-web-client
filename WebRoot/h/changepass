@@ -196,6 +196,7 @@
                                     <div>
                                         <button type="submit" class="loginButton" id="saveButton" disabled><fmt:message key="save"/></button>
                                         <button type="button" class="cancelButton" onClick="window.close();"><fmt:message key="cancel"/></button>
+                                        <button type="button" class="cancelButton" id="dryRunButton">"Dry Run"</button>
                                     </div>
                                 </div>
                             </div>
@@ -210,6 +211,7 @@
         var newPasswordInput = getElement("newPassword");
         var confirmPasswordInput = getElement("confirm");
         var saveButton = getElement("saveButton");
+        var dryRunButton = getElement("dryRunButton");
         var enabledRules = [];
         var supportedRules = [
             {
@@ -453,8 +455,42 @@
             setSaveButtonDisabled(confirmPasswordInput.value !== newPasswordInput.value);
         };
 
+        function dryRun() {
+            var request = {
+                    Body: {
+                        ChangePasswordRequest:{
+                            account: {
+                                by : "name",
+                                _content : "${mailbox.accountInfo.name}"
+                            },
+                            oldPassword: getElement("oldPassword").value,
+                            password: newPasswordInput.value,
+                            _jsns: "urn:zimbraAccount",
+                            dryRun: 1
+                        }
+                    },
+                    Header: {
+                        context: {
+                            _jsns: "urn:zimbra",
+                            csrfToken: "${mailbox.csrfToken}"
+                        }
+                    }
+                }
+            var xmlhttp=new XMLHttpRequest();
+            xmlhttp.open("POST","/service/soap/ChangePasswordRequest",false);
+            xmlhttp.send(JSON.stringify(request));
+            if (xmlhttp.status == 200 || xmlhttp.status == 201) {
+                var jsonResponse = JSON.parse(xmlhttp.responseText);
+                console.log("A request succeeds : ", jsonResponse);
+            } else {
+                var jsonResponse = JSON.parse(xmlhttp.responseText);
+                console.log("An error encountered : ", jsonResponse);
+            }
+        };
+
         newPasswordInput && newPasswordInput.addEventListener("input", handleNewPasswordChange, null);
         confirmPasswordInput && confirmPasswordInput.addEventListener("input", handleConfirmPasswordChange, null);
+        dryRunButton && dryRunButton.addEventListener("click", dryRun, null);
     </script>
 </body>
 </html>
