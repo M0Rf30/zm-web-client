@@ -64,6 +64,7 @@
     <c:set var="zimbraPasswordMinDigitsOrPuncs" value="${mailbox.accountInfo.attrs.zimbraPasswordMinDigitsOrPuncs[0]}"/>
     <c:set var="zimbraPasswordAllowedChars" value="${mailbox.accountInfo.attrs.zimbraPasswordAllowedChars[0]}"/>
     <c:set var="zimbraPasswordAllowedPunctuationChars" value="${mailbox.accountInfo.attrs.zimbraPasswordAllowedPunctuationChars[0]}"/>
+    <c:set var="zimbraPasswordEnforceHistory" value="${mailbox.accountInfo.attrs.zimbraPasswordEnforceHistory[0]}"/>
 </app:handleError>
 
 <html>
@@ -176,6 +177,16 @@
                                             ${minDigitsOrPuncsMsg}
                                         </li>
                                     </c:if>
+                                    <c:if test="${zimbraPasswordEnforceHistory ne 0}">
+                                        <li>
+                                            <fmt:message key="zimbraPasswordEnforceHistory" var="enforceHistoryMsg">
+                                                <fmt:param value="${zimbraPasswordEnforceHistory}"/>
+                                            </fmt:message>
+                                            <img src="/img/zimbra/ImgCloseGrayModern.png" id="enforceHistoryCloseImg" style="display: inline;"/>
+                                            <img src="/img/zimbra/ImgCheckModern.png" id="enforceHistoryCheckImg" style="display: none;"/>
+                                            ${enforceHistoryMsg}
+                                        </li>
+                                    </c:if>
                                 </ul>
                                 <fmt:message var="bothPasswordsMustMatchMsg" key="bothNewPasswordsMustMatch"/>
                                 <label for="confirm" class="zLoginFieldLabel"><fmt:message key="confirmPassword"/></label>
@@ -196,7 +207,6 @@
                                     <div>
                                         <button type="submit" class="loginButton" id="saveButton" disabled><fmt:message key="save"/></button>
                                         <button type="button" class="cancelButton" onClick="window.close();"><fmt:message key="cancel"/></button>
-                                        <button type="button" class="cancelButton" id="dryRunButton">"Dry Run"</button>
                                     </div>
                                 </div>
                             </div>
@@ -212,7 +222,10 @@
         var confirmPasswordInput = getElement("confirm");
         var saveButton = getElement("saveButton");
         var dryRunButton = getElement("dryRunButton");
-        var enabledRules = [];
+        var enabledLocalRules = [];
+        var enabledRemoteRules = [];
+        var matchedLocalRule = [];
+        var matchedRemoteRules = [];
         var supportedRules = [
             {
                 type : "zimbraPasswordMinLength",
@@ -243,31 +256,40 @@
                 type : "zimbraPasswordMinDigitsOrPuncs",
                 checkImg : getElement("minDigitsOrPuncsCheckImg"),
                 closeImg : getElement("minDigitsOrPuncsCloseImg")
+            },
+            {
+                type : "zimbraPasswordEnforceHistory",
+                checkImg : getElement("enforceHistoryCheckImg"),
+                closeImg : getElement("enforceHistoryCloseImg")
             }
         ];
 
         if (${zimbraPasswordMinLength}){
-            enabledRules.push(supportedRules.find(function(rule){ return rule.type === "zimbraPasswordMinLength"}));
+            enabledLocalRules.push(supportedRules.find(function(rule){ return rule.type === "zimbraPasswordMinLength"}));
         }
 
         if (${zimbraPasswordMinUpperCaseChars}) {
-            enabledRules.push(supportedRules.find(function(rule){ return rule.type === "zimbraPasswordMinUpperCaseChars"}));
+            enabledLocalRules.push(supportedRules.find(function(rule){ return rule.type === "zimbraPasswordMinUpperCaseChars"}));
         }
 
         if (${zimbraPasswordMinLowerCaseChars}) {
-            enabledRules.push(supportedRules.find(function(rule){ return rule.type === "zimbraPasswordMinLowerCaseChars"}));
+            enabledLocalRules.push(supportedRules.find(function(rule){ return rule.type === "zimbraPasswordMinLowerCaseChars"}));
         }
 
         if (${zimbraPasswordMinNumericChars}) {
-            enabledRules.push(supportedRules.find(function(rule){ return rule.type === "zimbraPasswordMinNumericChars"}));
+            enabledLocalRules.push(supportedRules.find(function(rule){ return rule.type === "zimbraPasswordMinNumericChars"}));
         }
 
         if (${zimbraPasswordMinPunctuationChars}) {
-            enabledRules.push(supportedRules.find(function(rule){ return rule.type === "zimbraPasswordMinPunctuationChars"}));
+            enabledLocalRules.push(supportedRules.find(function(rule){ return rule.type === "zimbraPasswordMinPunctuationChars"}));
         }
 
         if(${zimbraPasswordMinDigitsOrPuncs}) {
-            enabledRules.push(supportedRules.find(function(rule){ return rule.type === "zimbraPasswordMinDigitsOrPuncs"}));
+            enabledLocalRules.push(supportedRules.find(function(rule){ return rule.type === "zimbraPasswordMinDigitsOrPuncs"}));
+        }
+
+        if(${zimbraPasswordEnforceHistory}) {
+            enabledRemoteRules.push(supportedRules.find(function(rule){ return rule.type === "zimbraPasswordEnforceHistory"}));
         }
 
         function compareConfirmPass() {
@@ -296,7 +318,7 @@
             condition ? check(checkImg, closeImg) : unCheck(checkImg, closeImg);
         }
         function compareMatchedRules(matchedRule) {
-            enabledRules.forEach(function(rule) {
+            enabledLocalRules.forEach(function(rule) {
                 if (matchedRule.findIndex(function(mRule) { return mRule.type === rule.type}) >= 0) {
                     check(rule.checkImg, rule.closeImg);
                 } else {
@@ -304,8 +326,19 @@
                 }
             })
         }
-        function setSaveButtonDisabled(condition) {
-            if (condition) {
+        function compareMatchedRemoteRules(matchedRule) {
+            enabledRemoteRules.forEach(function(rule) {
+                if (matchedRule.findIndex(function(mRule) { return mRule.type === rule.type}) >= 0) {
+                    check(rule.checkImg, rule.closeImg);
+                } else {
+                    unCheck(rule.checkImg, rule.closeImg);
+                }
+            })
+        }
+        function setSaveButtonDisabled() {
+            var totalEnabledRules = (enabledLocalRules.length + enabledRemoteRules.length);
+            var totalMatchedRules = (matchedLocalRule.length + matchedRemoteRules.length);
+            if (!(totalEnabledRules === totalMatchedRules) || confirmPasswordInput.value !== newPasswordInput.value) {
                 saveButton.disabled = true;
             } else {
                 saveButton.disabled = false;
@@ -399,45 +432,49 @@
         function handleNewPasswordChange() {
             var currentValue = newPasswordInput.value;
             var parsedChars = parseCharsFromPassword(currentValue);
-            var matchedRule = [];
+            matchedLocalRule = [];
 
             if (${zimbraPasswordMinLength}){
                 if (currentValue.length >= ${zimbraPasswordMinLength}) {
-                    matchedRule.push({type : "zimbraPasswordMinLength"});
+                    matchedLocalRule.push({type : "zimbraPasswordMinLength"});
                 }
             }
 
             if (${zimbraPasswordMinUpperCaseChars}) {
                 if (parsedChars.uppers.length >= ${zimbraPasswordMinUpperCaseChars}) {
-                    matchedRule.push({type : "zimbraPasswordMinUpperCaseChars"});
+                    matchedLocalRule.push({type : "zimbraPasswordMinUpperCaseChars"});
                 }
             }
 
             if (${zimbraPasswordMinLowerCaseChars}) {
                 if (parsedChars.lowers.length >= ${zimbraPasswordMinLowerCaseChars}) {
-                    matchedRule.push({type : "zimbraPasswordMinLowerCaseChars"});
+                    matchedLocalRule.push({type : "zimbraPasswordMinLowerCaseChars"});
                 }
             }
 
             if (${zimbraPasswordMinNumericChars}) {
                 if (parsedChars.numbers.length >= ${zimbraPasswordMinNumericChars}) {
-                    matchedRule.push({type : "zimbraPasswordMinNumericChars"});
+                    matchedLocalRule.push({type : "zimbraPasswordMinNumericChars"});
                 }
             }
 
             if (${zimbraPasswordMinPunctuationChars}) {
                 if (parsedChars.punctuations.length >= ${zimbraPasswordMinPunctuationChars}) {
-                    matchedRule.push({type : "zimbraPasswordMinPunctuationChars"});
+                    matchedLocalRule.push({type : "zimbraPasswordMinPunctuationChars"});
                 }
             }
 
             if(${zimbraPasswordMinDigitsOrPuncs}) {
                 if (parsedChars.punctuations.length + parsedChars.numbers.length >= ${zimbraPasswordMinDigitsOrPuncs}) {
-                    matchedRule.push({type : "zimbraPasswordMinDigitsOrPuncs"});
+                    matchedLocalRule.push({type : "zimbraPasswordMinDigitsOrPuncs"});
                 }
             }
 
-            compareMatchedRules(matchedRule);
+            compareMatchedRules(matchedLocalRule);
+
+            if(enabledLocalRules.length === matchedLocalRule.length) {
+                dryRun();
+            }
 
             var errorMessageDiv = getElement("errorMessageDiv");
             if (parsedChars.invalidChars.length > 0) {
@@ -447,50 +484,56 @@
                 errorMessageDiv.style.display = "none";
             }
 
-            setSaveButtonDisabled(enabledRules.length > matchedRule.length || confirmPasswordInput.value !== newPasswordInput.value);
+            setSaveButtonDisabled();
         };
 
         function handleConfirmPasswordChange() {
             resetImg(confirmPasswordInput.value === newPasswordInput.value, getElement("mustMatchCheckImg"), getElement("mustMatchCloseImg"));
-            setSaveButtonDisabled(confirmPasswordInput.value !== newPasswordInput.value);
+            setSaveButtonDisabled();
         };
 
         function dryRun() {
+            matchedRemoteRules = [];
             var request = {
-                    Body: {
-                        ChangePasswordRequest:{
-                            account: {
-                                by : "name",
-                                _content : "${mailbox.accountInfo.name}"
-                            },
-                            oldPassword: getElement("oldPassword").value,
-                            password: newPasswordInput.value,
-                            _jsns: "urn:zimbraAccount",
-                            dryRun: 1
-                        }
-                    },
-                    Header: {
-                        context: {
-                            _jsns: "urn:zimbra",
-                            csrfToken: "${mailbox.csrfToken}"
-                        }
+                Body: {
+                    ChangePasswordRequest:{
+                        account: {
+                            by : "name",
+                            _content : "${mailbox.accountInfo.name}"
+                        },
+                        oldPassword: getElement("oldPassword").value,
+                        password: newPasswordInput.value,
+                        _jsns: "urn:zimbraAccount",
+                        dryRun: "1"
+                    }
+                },
+                Header: {
+                    context: {
+                        _jsns: "urn:zimbra",
+                        csrfToken: "${mailbox.csrfToken}"
                     }
                 }
+            };
             var xmlhttp=new XMLHttpRequest();
             xmlhttp.open("POST","/service/soap/ChangePasswordRequest",false);
             xmlhttp.send(JSON.stringify(request));
+
             if (xmlhttp.status == 200 || xmlhttp.status == 201) {
                 var jsonResponse = JSON.parse(xmlhttp.responseText);
-                console.log("A request succeeds : ", jsonResponse);
+                var changePasswordResponse = jsonResponse.Body.ChangePasswordResponse;
+                matchedRemoteRules.push({type : "zimbraPasswordEnforceHistory"});
+                compareMatchedRemoteRules(matchedRemoteRules);
             } else {
                 var jsonResponse = JSON.parse(xmlhttp.responseText);
-                console.log("An error encountered : ", jsonResponse);
+                var errorDetails = jsonResponse.Body.Fault.Detail.Error;
+                if (errorDetails.Code == "account.PASSWORD_RECENTLY_USED") {
+                    compareMatchedRemoteRules(matchedRemoteRules);
+                }
             }
         };
 
         newPasswordInput && newPasswordInput.addEventListener("input", handleNewPasswordChange, null);
         confirmPasswordInput && confirmPasswordInput.addEventListener("input", handleConfirmPasswordChange, null);
-        dryRunButton && dryRunButton.addEventListener("click", dryRun, null);
     </script>
 </body>
 </html>
