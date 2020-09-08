@@ -265,32 +265,42 @@
             }
         ];
 
+        function findRule(ruleType) {
+            if (!Array.prototype.find) {
+                var matchingRule;
+                supportedRules.forEach(function(rule){ if(rule.type === ruleType) { matchingRule = rule; } });
+                return matchingRule;
+            } else {
+                return supportedRules.find(function(rule){ return rule.type === ruleType });
+            }
+        }
+
         if (${zimbraPasswordMinLength}){
-            enabledLocalRules.push(supportedRules.find(function(rule){ return rule.type === "zimbraPasswordMinLength"}));
+            enabledLocalRules.push(findRule("zimbraPasswordMinLength"));
         }
 
         if (${zimbraPasswordMinUpperCaseChars}) {
-            enabledLocalRules.push(supportedRules.find(function(rule){ return rule.type === "zimbraPasswordMinUpperCaseChars"}));
+            enabledLocalRules.push(findRule("zimbraPasswordMinUpperCaseChars"));
         }
 
         if (${zimbraPasswordMinLowerCaseChars}) {
-            enabledLocalRules.push(supportedRules.find(function(rule){ return rule.type === "zimbraPasswordMinLowerCaseChars"}));
+            enabledLocalRules.push(findRule("zimbraPasswordMinLowerCaseChars"));
         }
 
         if (${zimbraPasswordMinNumericChars}) {
-            enabledLocalRules.push(supportedRules.find(function(rule){ return rule.type === "zimbraPasswordMinNumericChars"}));
+            enabledLocalRules.push(findRule("zimbraPasswordMinNumericChars"));
         }
 
         if (${zimbraPasswordMinPunctuationChars}) {
-            enabledLocalRules.push(supportedRules.find(function(rule){ return rule.type === "zimbraPasswordMinPunctuationChars"}));
+            enabledLocalRules.push(findRule("zimbraPasswordMinPunctuationChars"));
         }
 
         if(${zimbraPasswordMinDigitsOrPuncs}) {
-            enabledLocalRules.push(supportedRules.find(function(rule){ return rule.type === "zimbraPasswordMinDigitsOrPuncs"}));
+            enabledLocalRules.push(findRule("zimbraPasswordMinDigitsOrPuncs"));
         }
 
         if(${zimbraPasswordEnforceHistory}) {
-            enabledRemoteRules.push(supportedRules.find(function(rule){ return rule.type === "zimbraPasswordEnforceHistory"}));
+            enabledRemoteRules.push(findRule("zimbraPasswordEnforceHistory"));
         }
 
         function debounce(func, delay) {
@@ -524,13 +534,21 @@
             };
             var xmlhttp=new XMLHttpRequest();
             xmlhttp.open("POST","/service/soap/ChangePasswordRequest",false);
-            xmlhttp.send(JSON.stringify(request));
+            try {
+                xmlhttp.send(JSON.stringify(request));
+            } catch (error) {
+                console.error(error);
+            }
 
             if (xmlhttp.status == 200 || xmlhttp.status == 201) {
-                var jsonResponse = JSON.parse(xmlhttp.responseText);
-                var changePasswordResponse = jsonResponse.Body.ChangePasswordResponse;
-                matchedRemoteRules.push({type : "zimbraPasswordEnforceHistory"});
-                compareMatchedRemoteRules(matchedRemoteRules);
+                try {
+                    var jsonResponse = JSON.parse(xmlhttp.responseText);
+                    var changePasswordResponse = jsonResponse.Body.ChangePasswordResponse;
+                    matchedRemoteRules.push({type : "zimbraPasswordEnforceHistory"});
+                    compareMatchedRemoteRules(matchedRemoteRules);
+                } catch (error) {
+                    console.error(error);
+                }
             } else {
                 var jsonResponse = JSON.parse(xmlhttp.responseText);
                 var errorDetails = jsonResponse.Body.Fault.Detail.Error;
