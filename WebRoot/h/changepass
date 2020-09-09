@@ -56,7 +56,7 @@
     <zm:getDomainInfo var="domainInfo" by="virtualHostname" value="${zm:getServerName(pageContext)}"/>
     <zm:getMailbox var="mailbox"/>
     <c:set var="logoURL" value="${domainInfo.attrs.zimbraSkinLogoURL}"/>
-    <c:set var="zimbraPasswordMinLength" value="0"/>
+    <c:set var="zimbraPasswordMinLength" value="${mailbox.accountInfo.attrs.zimbraPasswordMinLength[0]}"/>
     <c:set var="zimbraPasswordMinUpperCaseChars" value="${mailbox.accountInfo.attrs.zimbraPasswordMinUpperCaseChars[0]}"/>
     <c:set var="zimbraPasswordMinLowerCaseChars" value="${mailbox.accountInfo.attrs.zimbraPasswordMinLowerCaseChars[0]}"/>
     <c:set var="zimbraPasswordMinPunctuationChars" value="${mailbox.accountInfo.attrs.zimbraPasswordMinPunctuationChars[0]}"/>
