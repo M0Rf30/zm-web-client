@@ -6159,6 +6159,28 @@ div#resetPasswordRecoveryButton {
 	padding: 5px 0;
 }
 
+.ZmPasswordRecoveryRule {
+	position: fixed;
+}
+
+.passwordWrapper {
+	position: relative;
+}
+
+.passwordWrapper #newPasswordHideSpan, #confirmHideSpan, #newPasswordShowSpan, #confirmShowSpan {
+	position: absolute;
+	z-index: 2;
+	font-size: 10px;
+	color: @gray-darker@;
+	right: 10px;
+	top: 11px;
+	cursor: pointer;
+}
+
+.passwordWrapper #newPasswordHideSpan:hover, #confirmHideSpan:hover, #newPasswordShowSpan:hover, #confirmShowSpan:hover {
+	color: @brand-primary@;
+}
+
 .ZmPasswordRecoverySetupContainer INPUT[type="text"], 
 .ZmPasswordRecoverySetupContainer INPUT[type="password"] {
 	box-sizing: border-box;
