@@ -591,6 +591,7 @@
                 } catch (error) {
                     console.error(error);
                 }
+                handleConfirmPasswordChange();
             } else {
                 try {
                     var isCommonPassword = false;
@@ -613,6 +614,7 @@
                 } catch(error) {
                     console.error(error);
                 }
+                handleConfirmPasswordChange();
             }
         }
 
