@@ -237,6 +237,7 @@
         var matchedLocalRule = [];
         var matchedRemoteRules = [];
         var debounceTimer;
+        var awaitingResponse = false;
         var supportedRules = [
             {
                 type : "zimbraPasswordMinLength",
@@ -391,7 +392,7 @@
         function setSaveButtonDisabled() {
             var totalEnabledRules = (enabledLocalRules.length + enabledRemoteRules.length);
             var totalMatchedRules = (matchedLocalRule.length + matchedRemoteRules.length);
-            if (!(totalEnabledRules === totalMatchedRules) || confirmPasswordInput.value !== newPasswordInput.value) {
+            if (awaitingResponse || (totalEnabledRules !== totalMatchedRules || confirmPasswordInput.value !== newPasswordInput.value)) {
                 saveButton.disabled = true;
             } else {
                 saveButton.disabled = false;
@@ -540,6 +541,7 @@
             compareMatchedRules(matchedLocalRule);
 
             if(enabledLocalRules.length === matchedLocalRule.length) {
+                awaitingResponse = true;
                 debounce(dryRun, 2000);
             }
 
@@ -614,6 +616,7 @@
                     console.error(error);
                 }
             }
+            awaitingResponse = false;
             handleConfirmPasswordChange();
         }
 
